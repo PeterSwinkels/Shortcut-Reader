@@ -1,50 +1,66 @@
 Attribute VB_Name = "ShortcutReaderModule"
-'This module contains the Shortcut Reader.
+'This module contains this program's core procedures.
 Option Explicit
 
-'This procedure displays the target of the shortcut file specified by the user.
+'This procedure is executed when this program is started and displays the target of the shortcut file specified by the user.
 Public Sub Main()
-Dim Directory As String
-Dim Folder As Shell32.Folder
-Dim FolderItem As Shell32.FolderItem
-Dim Path As String
+On Error GoTo ErrorTrap
 Dim Shell As New Shell32.Shell
-Dim ShellLink As Shell32.ShellLinkObject
-Dim ShortCut As String
+Dim ShortcutFileName As String
+Dim ShortcutFileO As Shell32.FolderItem
+Dim ShortcutFolderO As Shell32.Folder
+Dim ShortcutDirectory As String
+Dim ShortcutLinkO As Shell32.ShellLinkObject
+Dim ShortcutPath As String
 
-Path = InputBox$("Enter the path of a shortcut file:")
- If Path = Empty Then End
+   ChDrive Left$(App.Path, InStr(App.Path, ":"))
+   ChDir App.Path
 
-SplitPath Path, Directory, ShortCut
- If Directory = Empty Then Directory = CurDir$
- If ShortCut = Empty Then ShortCut = Path
+   ShortcutPath = InputBox$("Enter the path of a shortcut file:")
  
-Set Folder = Shell.NameSpace(Directory)
-Set FolderItem = Folder.ParseName(ShortCut)
-Set ShellLink = FolderItem.GetLink
-
-MsgBox "Target of shortcut:" & vbCrLf & ShellLink.Path, vbInformation
+   If Not ShortcutPath = vbNullString Then
+      SplitPath ShortcutPath, ShortcutDirectory, ShortcutFileName
+      If ShortcutDirectory = vbNullString Then ShortcutDirectory = CurDir$()
+      If ShortcutFileName = vbNullString Then ShortcutFileName = ShortcutPath
+       
+      Set ShortcutFolderO = Shell.NameSpace(ShortcutDirectory)
+      If ShortcutFolderO Is Nothing Then
+         MsgBox "The specified directory or drive could not be accessed.", vbExclamation
+      Else
+         Set ShortcutFileO = ShortcutFolderO.ParseName(ShortcutFileName)
+         If ShortcutFileO Is Nothing Then
+            MsgBox "The specified shortcut file could not be accessed.", vbExclamation
+         Else
+            If ShortcutFileO.IsLink() Then
+               Set ShortcutLinkO = ShortcutFileO.GetLink()
+               MsgBox "Target of shortcut:" & vbCrLf & ShortcutLinkO.Path(), vbInformation
+            Else
+               MsgBox "The link could not be retrieved from the specified shortcut file.", vbExclamation
+            End If
+         End If
+      End If
+   End If
+   
+EndRoutine:
+   Exit Sub
+   
+ErrorTrap:
+   MsgBox Err.Description & vbCr & "Error code: " & CStr(Err.Number), vbExclamation
+   Resume EndRoutine
 End Sub
 
+'This procedure returns the directory and filename parts of the specified path.
+Private Sub SplitPath(ByVal Path As String, ByRef Directory As String, ByRef FileName As String)
+Dim Position As Long
 
-'This procedure returns the directory and/or filename parts of the specified path.
-Public Sub SplitPath(ByVal Path As String, Optional Directory As String, Optional FileName As String)
-Dim Index As Long, NextIndex As Long
-
-Directory = Empty
-FileName = Empty
-Index = InStr(Path, "\")
-NextIndex = 0
- Do
-  NextIndex = InStr(Index + 1, Path, "\")
-   If NextIndex = 0 Then Exit Do
-  Index = NextIndex
- Loop
- 
- If Not Index = 0 Then
-  Directory = Left$(Path, Index)
-  FileName = Mid$(Path, Index + 1)
- End If
+   Directory = vbNullString
+   FileName = vbNullString
+   Position = InStrRev(Path, "\")
+   
+   If Position > 0 Then
+      Directory = Left$(Path, Position)
+      FileName = Mid$(Path, Position + 1)
+   End If
 End Sub
 
 
